@@ -6,6 +6,7 @@ import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
 import 'package:flame/extensions.dart';
 import 'package:flame/game.dart';
+import 'package:flame_audio/flame_audio.dart';
 import 'package:flutter/material.dart';
 
 class Player extends PositionComponent with HasGameRef<Bankroll> {
@@ -132,7 +133,7 @@ class Player extends PositionComponent with HasGameRef<Bankroll> {
           ),
         ],
         onComplete: () {
-          // FlameAudio.audioCache.play("step.ogg", mode: PlayerMode.LOW_LATENCY);
+          FlameAudio.audioCache.play("sfx/step.ogg", volume: 0.5);
           _isAnimating = false;
         },
       );

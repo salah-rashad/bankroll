@@ -25,6 +25,7 @@ class Bankroll extends BaseGame with HasTappableComponents, KeyboardEvents {
   set turn(int value) => this._playerTurn.value = value;
 
   int lastRoll = 1;
+  bool isRolling = false;
 
   double get sWidth => Get.width / 8;
   double get sHeight => sWidth + (sWidth * 0.2);
@@ -124,10 +125,10 @@ class Bankroll extends BaseGame with HasTappableComponents, KeyboardEvents {
     await buildGameBoard();
 
     players.addAll([
-      Player("1", Colors.red, 1000),
-      Player("2", Colors.green, 1050),
-      Player("3", Colors.yellow, 1100),
-      Player("4", Colors.blue, 1150),
+      Player("P1", Colors.red, 1000),
+      Player("P2", Colors.green, 1050),
+      Player("P3", Colors.yellow, 1100),
+      Player("P4", Colors.blue, 1150),
     ]);
 
     await addAll(players);
@@ -160,7 +161,7 @@ class Bankroll extends BaseGame with HasTappableComponents, KeyboardEvents {
         RRect.fromRectAndRadius(Rect.largest, Radius.circular(4.0)),
         centerPanelFill);
 
-    TextPaint().render(
+    /* TextPaint().render(
       canvas,
       "Rolled: $lastRoll",
       Vector2(Get.width / 2, 64.0),
@@ -172,7 +173,7 @@ class Bankroll extends BaseGame with HasTappableComponents, KeyboardEvents {
       "Turn: " + players[turn].name,
       Vector2(Get.width - 8.0, 64.0),
       anchor: Anchor.centerRight,
-    );
+    ); */
 
     super.render(canvas);
   }
@@ -231,7 +232,9 @@ class Bankroll extends BaseGame with HasTappableComponents, KeyboardEvents {
   }
 
   Future<void> rollDice() async {
-    if (players[turn].isBusy) return;
+    if (players[turn].isBusy || isRolling) return;
+
+    isRolling = true;
     lastRoll = await dice.roll();
 
     int destination = players[turn].currentSpaceIndex + lastRoll;
@@ -239,6 +242,7 @@ class Bankroll extends BaseGame with HasTappableComponents, KeyboardEvents {
     rollButton.isEnabled = false;
     await players[turn].moveTo(destination % spaces.length);
     rollButton.isEnabled = true;
+    isRolling = false;
 
     if (lastRoll == 6) return;
 

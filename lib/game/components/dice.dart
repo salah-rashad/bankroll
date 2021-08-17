@@ -5,6 +5,7 @@ import 'package:bankroll/game/bankroll.dart';
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
 import 'package:flame/flame.dart';
+import 'package:flame_audio/flame_audio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 
@@ -29,13 +30,9 @@ class Dice extends SpriteComponent with HasGameRef<Bankroll> {
     this.size = sprite!.srcSize;
     this.position = Vector2(Get.width + width / 2, Get.height / 2);
 
-    this.addEffect(
+    FlameAudio.audioCache.play("sfx/dice-roll.ogg");
+    addEffect(
       CombinedEffect(
-        onComplete: () {
-          clearEffects();
-          angle = 0.0;
-          _isAnimating = false;
-        },
         effects: [
           new RotateEffect(
             angle: 180,
@@ -46,6 +43,11 @@ class Dice extends SpriteComponent with HasGameRef<Bankroll> {
             duration: 0.4,
           ),
         ],
+        onComplete: () {
+          clearEffects();
+          angle = 0.0;
+          _isAnimating = false;
+        },
       ),
     );
 
