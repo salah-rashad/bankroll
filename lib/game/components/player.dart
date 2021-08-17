@@ -2,18 +2,18 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:bankroll/game/bankroll.dart';
-import 'package:bankroll/game/components/space.dart';
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
 import 'package:flame/extensions.dart';
 import 'package:flame/game.dart';
-import 'package:flame/gestures.dart';
 import 'package:flutter/material.dart';
 
 class Player extends PositionComponent with HasGameRef<Bankroll> {
   final String name;
   final Color color;
   final int cash;
+
+  late final Vector2 originalSize;
 
   int currentIndex = 0;
 
@@ -24,11 +24,12 @@ class Player extends PositionComponent with HasGameRef<Bankroll> {
     required this.name,
     required this.color,
     required this.cash,
-    required Vector2 size,
-  }) : super(size: size, priority: 6);
+  }) : super(priority: 6, anchor: Anchor.center);
 
   @override
   Future<void>? onLoad() {
+    originalSize = Vector2.all(gameRef.sWidth / 2);
+    this.size = originalSize;
     position = gameRef.spaces[currentIndex].center;
     return super.onLoad();
   }
@@ -98,7 +99,9 @@ class Player extends PositionComponent with HasGameRef<Bankroll> {
             curve: Curves.easeInOut,
           ),
         ],
-        onComplete: () => _isMoving = false,
+        onComplete: () {
+          _isMoving = false;
+        },
       );
 
       addEffect(effects);
@@ -106,12 +109,16 @@ class Player extends PositionComponent with HasGameRef<Bankroll> {
       await _waitUntilDone();
 
       currentIndex = gameRef.spaces.indexWhere((s) => p == s.center);
+
+      gameRef.refreshPlayers();
       print(currentIndex);
-      // await Future.delayed(Duration(milliseconds: 500));
     }
 
     isBusy = false;
     print("done");
+
+    gameRef.refreshPlayers();
+
     return true;
   }
 

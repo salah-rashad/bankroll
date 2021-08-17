@@ -6,14 +6,17 @@ import 'package:bankroll/game/components/player.dart';
 import 'package:bankroll/game/components/space.dart';
 import 'package:bankroll/game/enums/property_type_enum.dart';
 import 'package:flame/components.dart';
+import 'package:flame/effects.dart';
 import 'package:flame/game.dart';
+import 'package:flame/keyboard.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
 import 'components/event_space.dart';
 import 'components/public.dart';
 
-class Bankroll extends BaseGame with HasTappableComponents {
+class Bankroll extends BaseGame with HasTappableComponents, KeyboardEvents {
   RxList<Player> players = <Player>[].obs;
 
   RxInt _playerTurn = 0.obs;
@@ -32,8 +35,6 @@ class Bankroll extends BaseGame with HasTappableComponents {
   double get sHeight => sWidth + (sWidth * 0.2);
   double get BOARD_START => (Get.height % (8 * sHeight)) / 2;
   double get BOARD_END => Get.height - BOARD_START;
-
-  Vector2 _playerOriginalSize = Vector2.zero();
 
   List<Space> spaces = <Space>[];
 
@@ -126,24 +127,32 @@ class Bankroll extends BaseGame with HasTappableComponents {
   Future<void> onLoad() async {
     await buildGameBoard();
 
-    _playerOriginalSize = Vector2.all(sWidth / 2);
-
     players.addAll([
       Player(
         name: "P1",
         color: Colors.red,
         cash: 1000,
-        size: _playerOriginalSize,
       ),
       Player(
         name: "P2",
         color: Colors.green,
         cash: 1050,
-        size: Vector2.all(sWidth / 2),
-      )
+      ),
+      Player(
+        name: "P3",
+        color: Colors.yellow,
+        cash: 1100,
+      ),
+      Player(
+        name: "P4",
+        color: Colors.blue,
+        cash: 1150,
+      ),
     ]);
 
-    addAll(players);
+    await addAll(players);
+
+    refreshPlayers();
 
     turn = randomTurn();
 
@@ -244,14 +253,12 @@ class Bankroll extends BaseGame with HasTappableComponents {
     await players[turn].moveTo(destination % spaces.length);
     rollButton.isEnabled = true;
 
+    if (lastRoll == 6) return;
 
+    turn = (turn + 1) % players.length;
+  }
 
-
-    // TODO: STOPPED HERE
-
-
-    
-
+  void refreshPlayers() {
     for (var s in spaces) {
       final double w = s.toRect().width;
       final double h = s.toRect().height;
@@ -259,18 +266,30 @@ class Bankroll extends BaseGame with HasTappableComponents {
       final List<Vector2> rooms = List.generate(4, (i) {
         switch (i) {
           case 0:
-            return Vector2(w / 4, h / 4);
+            return Vector2(
+              s.x + (w / 4),
+              s.y + (h / 4),
+            );
 
           case 1:
-            return Vector2(w - w / 4, h / 4);
+            return Vector2(
+              s.x + (w - (w / 4)),
+              s.y + (h / 4),
+            );
 
           case 2:
-            return Vector2(w / 4, h - h / 4);
+            return Vector2(
+              s.x + (w / 4),
+              s.y + (h - (h / 4)),
+            );
 
           case 3:
-            return Vector2(w - w / 4, h - h / 4);
+            return Vector2(
+              s.x + (w - (w / 4)),
+              s.y + (h - (h / 4)),
+            );
           default:
-            return Vector2(w / 4, h / 4);
+            return s.center;
         }
       }, growable: false);
 
@@ -280,17 +299,23 @@ class Bankroll extends BaseGame with HasTappableComponents {
         if (s.toRect().overlaps(p.toRect())) overlapping.add(p);
       }
 
-      if (overlapping.length > 1) {
-        for (int i = 0; i < overlapping.length; i++) {
-          overlapping[i].size /= 2;
-          overlapping[i].position = rooms[i];
-          overlapping[i].update(50);
+      for (int i = 0; i < overlapping.length; i++) {
+        if (overlapping.length > 1) {
+          overlapping[i].size = overlapping[i].originalSize / 2;
+          overlapping[i].addEffect(MoveEffect(path: [rooms[i]], duration: 0.1));
+        } else {
+          overlapping[i].size = overlapping[i].originalSize;
+          overlapping[i].addEffect(MoveEffect(path: [s.center], duration: 0.1));
         }
       }
     }
+  }
 
-    if (lastRoll == 6) return;
-
-    turn = (turn + 1) % players.length;
+  @override
+  void onKeyEvent(RawKeyEvent event) {
+    if (event.isKeyPressed(LogicalKeyboardKey.numpad1)) turn = 0;
+    if (event.isKeyPressed(LogicalKeyboardKey.numpad2)) turn = 1;
+    if (event.isKeyPressed(LogicalKeyboardKey.numpad3)) turn = 2;
+    if (event.isKeyPressed(LogicalKeyboardKey.numpad4)) turn = 3;
   }
 }

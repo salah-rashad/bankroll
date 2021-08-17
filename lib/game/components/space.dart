@@ -1,8 +1,10 @@
 import 'dart:ui';
 
 import 'package:bankroll/game/bankroll.dart';
+import 'package:bankroll/game/components/player.dart';
 import 'package:bankroll/game/enums/property_type_enum.dart';
 import 'package:flame/components.dart';
+import 'package:flame/effects.dart';
 import 'package:flame/extensions.dart';
 import 'package:flame/gestures.dart';
 import 'package:flutter/material.dart';
@@ -70,4 +72,6 @@ abstract class Space extends PositionComponent
     gameRef.players[gameRef.turn].moveTo(id);
     return super.onTapUp(info);
   }
+
+  
 }
