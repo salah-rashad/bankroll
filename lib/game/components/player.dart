@@ -10,62 +10,94 @@ import 'package:flutter/material.dart';
 
 class Player extends PositionComponent with HasGameRef<Bankroll> {
   final String name;
-  final Color color;
-  final int cash;
+  final Color _color;
+  final Color _textColor;
+  int cash;
+  int worth = 0;
+
+  /// The duration that every step takes, in milliseconds.
+  static const double STEP_DURATION = 0.2;
 
   late final Vector2 originalSize;
 
-  int currentIndex = 0;
+  int currentSpaceIndex = 0;
 
   bool isBusy = false;
-  bool _isMoving = false;
+  bool _isAnimating = false;
 
-  Player({
-    required this.name,
-    required this.color,
-    required this.cash,
-  }) : super(priority: 6, anchor: Anchor.center);
+  Color get color => isTurn() ? _color : _color.darken(0.6);
+  Color get textColor => isTurn() ? _textColor : _textColor.darken(0.6);
+
+  Player(
+    this.name,
+    this._color,
+    this.cash, [
+    this._textColor = Colors.white,
+  ]) : super(priority: 6, anchor: Anchor.center);
+
+  bool isTurn() => gameRef.players[gameRef.turn] == this;
 
   @override
   Future<void>? onLoad() {
+    worth = cash;
     originalSize = Vector2.all(gameRef.sWidth / 2);
     this.size = originalSize;
-    position = gameRef.spaces[currentIndex].center;
+    position = gameRef.spaces[currentSpaceIndex].center;
     return super.onLoad();
   }
 
   @override
   void render(Canvas canvas) {
+    final bool isFloating = isTurn() && !isBusy;
     var paint = Paint();
-    final topPosition = position.toOffset().translate(0.0, -6.0);
+    final topPosition = position.toOffset().translate(0.0, -5.0);
+
+    final shadowPath = Path();
+
+    shadowPath.addOval(
+      Rect.fromCircle(
+          center: position.toOffset(),
+          radius: size.x / (isFloating ? 1.6 : 1.8)),
+    );
 
     canvas.drawShadow(
-      Path()
-        ..addOval(
-            Rect.fromCircle(center: position.toOffset(), radius: size.x / 1.6)),
+      shadowPath,
       Colors.black,
-      7.0,
+      isFloating ? 10.0 : 7.0,
       true,
     );
 
-    // paint.style = PaintingStyle.stroke;
-    // paint.color = Colors.black;
-    // paint.strokeWidth = 2.0;
-    // canvas.drawCircle(position.toOffset(), size.x / 2, paint);
-    // canvas.drawCircle(topPosition, size.x / 2, paint);
+    // if (isTurn()) {
+    //   paint.style = PaintingStyle.stroke;
+    //   paint.color = Colors.white54;
+    //   paint.strokeWidth = 5.0;
+    //   canvas.drawCircle(
+    //       position.toOffset().translate(0.0, isTurn() ? -4.0 : 0.0),
+    //       size.x / 2,
+    //       paint);
+    //   canvas.drawCircle(
+    //       topPosition.translate(0.0, isTurn() ? -3.5 : 0.0), size.x / 2, paint);
+    // }
 
     paint.style = PaintingStyle.fill;
 
     paint.color = color.darken(0.3);
-    canvas.drawCircle(position.toOffset(), size.x / 2, paint);
+    canvas.drawCircle(
+      position.toOffset().translate(0.0, isFloating ? -4.0 : 0.0),
+      width / 2,
+      paint,
+    );
     paint.color = color;
-    canvas.drawCircle(topPosition, size.x / 2, paint);
+    canvas.drawCircle(
+      topPosition.translate(0.0, isFloating ? -3.5 : 0.0),
+      width / 2,
+      paint,
+    );
 
-    TextPaint(config: TextPaintConfig(color: Colors.white, fontSize: 12.0))
-        .render(
+    TextPaint(config: TextPaintConfig(color: textColor, fontSize: 12.0)).render(
       canvas,
       name,
-      topPosition.toVector2(),
+      topPosition.translate(0.0, isFloating ? -3.5 : 0.0).toVector2(),
       anchor: Anchor.center,
     );
 
@@ -73,34 +105,35 @@ class Player extends PositionComponent with HasGameRef<Bankroll> {
   }
 
   Future<bool> moveTo(int id) async {
-    final from = currentIndex;
+    final from = currentSpaceIndex;
     final to = id;
 
-    if (currentIndex == to || isBusy || _isMoving) return false;
+    if (currentSpaceIndex == to || isBusy || _isAnimating) return false;
 
     isBusy = true;
 
     List<Vector2> path = generatePath(from, to);
 
     for (var p in path) {
-      _isMoving = true;
+      _isAnimating = true;
       var effects = CombinedEffect(
         effects: [
           MoveEffect(
             path: [p],
-            duration: 0.2,
+            duration: STEP_DURATION,
             isAlternating: false,
             curve: Curves.easeInOut,
           ),
           ScaleEffect(
             size: this.size * 1.5,
-            duration: 0.2,
+            duration: STEP_DURATION,
             isAlternating: true,
             curve: Curves.easeInOut,
           ),
         ],
         onComplete: () {
-          _isMoving = false;
+          // FlameAudio.audioCache.play("step.ogg", mode: PlayerMode.LOW_LATENCY);
+          _isAnimating = false;
         },
       );
 
@@ -108,10 +141,12 @@ class Player extends PositionComponent with HasGameRef<Bankroll> {
 
       await _waitUntilDone();
 
-      currentIndex = gameRef.spaces.indexWhere((s) => p == s.center);
+      currentSpaceIndex = gameRef.spaces.indexWhere((s) => p == s.center);
+
+      if (currentSpaceIndex == gameRef.startSpace!.id) await increaseCash(200);
 
       gameRef.refreshPlayers();
-      print(currentIndex);
+      print(currentSpaceIndex);
     }
 
     isBusy = false;
@@ -140,12 +175,22 @@ class Player extends PositionComponent with HasGameRef<Bankroll> {
 
   Future<void> _waitUntilDone() async {
     final completer = Completer();
-    if (_isMoving) {
+    if (_isAnimating) {
       await Future.delayed(Duration(milliseconds: 100));
       return _waitUntilDone();
     } else {
       completer.complete();
     }
     return completer.future;
+  }
+
+  Future<void> increaseCash(int amount) async {
+    this.cash += amount;
+    if (!cash.isNegative) worth += amount;
+  }
+
+  Future<void> decreaseCash(int amount) async {
+    this.cash += amount;
+    if (cash.isNegative) worth -= amount;
   }
 }

@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:bankroll/game/components/buttons/simple_button.dart';
 import 'package:bankroll/game/components/city.dart';
+import 'package:bankroll/game/components/dice.dart';
 import 'package:bankroll/game/components/player.dart';
 import 'package:bankroll/game/components/space.dart';
 import 'package:bankroll/game/enums/property_type_enum.dart';
@@ -23,13 +24,7 @@ class Bankroll extends BaseGame with HasTappableComponents, KeyboardEvents {
   int get turn => this._playerTurn.value;
   set turn(int value) => this._playerTurn.value = value;
 
-  int lastRoll = 0;
-
-  int randomTurn() {
-    int r = Random().nextInt(players.length);
-    if (r == 0) return randomTurn();
-    return r;
-  }
+  int lastRoll = 1;
 
   double get sWidth => Get.width / 8;
   double get sHeight => sWidth + (sWidth * 0.2);
@@ -44,6 +39,7 @@ class Bankroll extends BaseGame with HasTappableComponents, KeyboardEvents {
   bool get debugMode => false;
 
   late final SimpleButtonComponent rollButton;
+  final Dice dice = Dice();
 
   static List<Space> get _boardSpaces => [
         //
@@ -128,26 +124,10 @@ class Bankroll extends BaseGame with HasTappableComponents, KeyboardEvents {
     await buildGameBoard();
 
     players.addAll([
-      Player(
-        name: "P1",
-        color: Colors.red,
-        cash: 1000,
-      ),
-      Player(
-        name: "P2",
-        color: Colors.green,
-        cash: 1050,
-      ),
-      Player(
-        name: "P3",
-        color: Colors.yellow,
-        cash: 1100,
-      ),
-      Player(
-        name: "P4",
-        color: Colors.blue,
-        cash: 1150,
-      ),
+      Player("1", Colors.red, 1000),
+      Player("2", Colors.green, 1050),
+      Player("3", Colors.yellow, 1100),
+      Player("4", Colors.blue, 1150),
     ]);
 
     await addAll(players);
@@ -165,8 +145,10 @@ class Bankroll extends BaseGame with HasTappableComponents, KeyboardEvents {
       radius: Radius.circular(4.0),
       padding: EdgeInsets.symmetric(horizontal: 32.0, vertical: 16.0),
     );
-
     add(rollButton);
+
+    add(dice);
+
     return super.onLoad();
   }
 
@@ -193,6 +175,12 @@ class Bankroll extends BaseGame with HasTappableComponents, KeyboardEvents {
     );
 
     super.render(canvas);
+  }
+
+  int randomTurn() {
+    int r = Random().nextInt(players.length);
+    if (r == 0) return randomTurn();
+    return r;
   }
 
   Future<void> buildGameBoard() async {
@@ -243,11 +231,10 @@ class Bankroll extends BaseGame with HasTappableComponents, KeyboardEvents {
   }
 
   Future<void> rollDice() async {
-    lastRoll = new Random().nextInt(7);
+    if (players[turn].isBusy) return;
+    lastRoll = await dice.roll();
 
-    if (lastRoll == 0) return rollDice();
-
-    int destination = players[turn].currentIndex + lastRoll;
+    int destination = players[turn].currentSpaceIndex + lastRoll;
 
     rollButton.isEnabled = false;
     await players[turn].moveTo(destination % spaces.length);
@@ -300,12 +287,13 @@ class Bankroll extends BaseGame with HasTappableComponents, KeyboardEvents {
       }
 
       for (int i = 0; i < overlapping.length; i++) {
+        var p = overlapping[i];
         if (overlapping.length > 1) {
-          overlapping[i].size = overlapping[i].originalSize / 2;
-          overlapping[i].addEffect(MoveEffect(path: [rooms[i]], duration: 0.1));
+          p.size = p.isBusy ? p.originalSize : p.originalSize / 2;
+          p.addEffect(MoveEffect(path: [rooms[i]], duration: 0.1));
         } else {
-          overlapping[i].size = overlapping[i].originalSize;
-          overlapping[i].addEffect(MoveEffect(path: [s.center], duration: 0.1));
+          p.size = p.originalSize;
+          p.addEffect(MoveEffect(path: [s.center], duration: 0.1));
         }
       }
     }
@@ -317,5 +305,6 @@ class Bankroll extends BaseGame with HasTappableComponents, KeyboardEvents {
     if (event.isKeyPressed(LogicalKeyboardKey.numpad2)) turn = 1;
     if (event.isKeyPressed(LogicalKeyboardKey.numpad3)) turn = 2;
     if (event.isKeyPressed(LogicalKeyboardKey.numpad4)) turn = 3;
+    if (event.isKeyPressed(LogicalKeyboardKey.space)) rollDice();
   }
 }

@@ -11,7 +11,7 @@ class GamePage extends GetView<HomeController> {
     return Scaffold(
       body: Stack(
         children: [
-          GameWidget<Bankroll>(game: bankroll),
+          GameWidget(game: bankroll),
           Positioned(
             top: 16.0,
             left: 16.0,

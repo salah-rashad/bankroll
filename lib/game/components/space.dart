@@ -72,6 +72,4 @@ abstract class Space extends PositionComponent
     gameRef.players[gameRef.turn].moveTo(id);
     return super.onTapUp(info);
   }
-
-  
 }

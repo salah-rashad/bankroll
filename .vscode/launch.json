@@ -5,9 +5,16 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Dart & Flutter",
+            "name": "Flutter",
             "request": "launch",
             "type": "dart"
+        },
+        {
+            "name": "Flutter (profile)",
+            "type": "dart",
+            "request": "launch",
+            "program": "lib/main.dart",
+            "flutterMode": "profile"
         }
     ]
 }
