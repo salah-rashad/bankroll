@@ -27,6 +27,7 @@ dependencies:
   get: ^4.3.6
   flame: ^1.0.0-releasecandidate.13
   flame_audio: ^1.0.0-rc.1
+  intl: ^0.17.0
 
 dev_dependencies:
   flutter_test:
@@ -48,6 +49,10 @@ flutter:
     - assets/
     - assets/images/
     - assets/images/dice/
+    - assets/images/icons/
+    - assets/images/icons/public/
+    - assets/images/icons/event/
+    - assets/images/scenes/
     - assets/audio/
     - assets/audio/sfx/
 

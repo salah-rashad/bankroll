@@ -16,7 +16,7 @@ class SimpleButtonComponent extends PositionComponent with Tappable {
   double _elevation = 8.0;
 
   bool isEnabled = true;
-  bool _isTapDown = false;
+  bool isTapDown = false;
 
   late final Rect rect;
   late final TextPaint textPaint;
@@ -71,13 +71,13 @@ class SimpleButtonComponent extends PositionComponent with Tappable {
     p.color = isEnabled ? bgColor.darken(0.0) : bgColor.darken(0.5);
     canvas.drawRRect(
         RRect.fromRectAndRadius(
-            rect.translate(0.0, _isTapDown ? _elevation / 2 : 0.0), radius),
+            rect.translate(0.0, isTapDown ? _elevation / 2 : 0.0), radius),
         p);
 
     final textPosition = this
         .center
         .toOffset()
-        .translate(0.0, _isTapDown ? _elevation / 2 : 0.0);
+        .translate(0.0, isTapDown ? _elevation / 2 : 0.0);
 
     textPaint.render(
       canvas,
@@ -91,20 +91,20 @@ class SimpleButtonComponent extends PositionComponent with Tappable {
 
   @override
   bool onTapCancel() {
-    _isTapDown = false;
+    isTapDown = false;
     return super.onTapCancel();
   }
 
   @override
   bool onTapDown(TapDownInfo info) {
-    if (isEnabled) _isTapDown = true;
+    if (isEnabled) isTapDown = true;
     return super.onTapDown(info);
   }
 
   @override
   bool onTapUp(TapUpInfo info) {
     if (isEnabled) {
-      _isTapDown = false;
+      isTapDown = false;
       onPressed();
     }
 

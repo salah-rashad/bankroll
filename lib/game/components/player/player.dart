@@ -1,7 +1,12 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:bankroll/game/bankroll.dart';
+import 'package:bankroll/game/consts/priorities.dart';
+import 'package:bankroll/game/custom_layers/player_interface.dart';
+import 'package:bankroll/game/enums/direction.dart';
+import 'package:bankroll/game/utils/moving_text.dart';
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
 import 'package:flame/extensions.dart';
@@ -9,47 +14,54 @@ import 'package:flame/game.dart';
 import 'package:flame_audio/flame_audio.dart';
 import 'package:flutter/material.dart';
 
-class Player extends PositionComponent with HasGameRef<Bankroll> {
-  final String name;
-  final Color _color;
-  final Color _textColor;
-  int cash;
-  int worth = 0;
-
+abstract class Player extends PositionComponent with HasGameRef<Bankroll> {
   /// The duration that every step takes, in milliseconds.
   static const double STEP_DURATION = 0.2;
 
-  late final Vector2 originalSize;
+  final String name;
+  final Color initColor;
+  Color initTextColor;
+  int _cash;
+  int worth = 0;
 
-  int currentSpaceIndex = 0;
+  PlayerInterface get interface =>
+      PlayerInterface(player: this, gameRef: gameRef);
+  late final Vector2 initSize;
 
+  int currentSpaceId = 0;
   bool isBusy = false;
-  bool _isAnimating = false;
 
-  Color get color => isTurn() ? _color : _color.darken(0.6);
-  Color get textColor => isTurn() ? _textColor : _textColor.darken(0.6);
+  bool _waitMoving = false;
 
   Player(
     this.name,
-    this._color,
-    this.cash, [
-    this._textColor = Colors.white,
-  ]) : super(priority: 6, anchor: Anchor.center);
+    this.initColor,
+    this._cash, [
+    this.initTextColor = Colors.white,
+  ]) : super(priority: Priorities.PLAYER.index, anchor: Anchor.center);
 
-  bool isTurn() => gameRef.players[gameRef.turn] == this;
+  int get cash => _cash;
 
+  bool get isTurn => gameRef.currentPlayer == this;
+  Color get color => isTurn ? initColor : initColor.darken(0.6);
+  Color get textColor => isTurn ? initTextColor : initTextColor.darken(0.6);
   @override
   Future<void>? onLoad() {
-    worth = cash;
-    originalSize = Vector2.all(gameRef.sWidth / 2);
-    this.size = originalSize;
-    position = gameRef.spaces[currentSpaceIndex].center;
+    worth = _cash;
+    initTextColor = initColor.computeLuminance() > 0.5
+        ? initColor.darken(0.7)
+        : initColor.brighten(0.7);
+    initSize = Vector2.all(gameRef.sWidth / 2);
+    this.size = initSize;
+    position = gameRef.spaces[currentSpaceId].center;
     return super.onLoad();
   }
 
+  int get getIndex => gameRef.players.indexWhere((p) => p == this);
+
   @override
   void render(Canvas canvas) {
-    final bool isFloating = isTurn() && !isBusy;
+    final bool isFloating = isTurn && !isBusy;
     var paint = Paint();
     final topPosition = position.toOffset().translate(0.0, -5.0);
 
@@ -88,6 +100,7 @@ class Player extends PositionComponent with HasGameRef<Bankroll> {
       width / 2,
       paint,
     );
+
     paint.color = color;
     canvas.drawCircle(
       topPosition.translate(0.0, isFloating ? -3.5 : 0.0),
@@ -97,26 +110,58 @@ class Player extends PositionComponent with HasGameRef<Bankroll> {
 
     TextPaint(config: TextPaintConfig(color: textColor, fontSize: 12.0)).render(
       canvas,
-      name,
+      name.substring(0, 2),
       topPosition.translate(0.0, isFloating ? -3.5 : 0.0).toVector2(),
       anchor: Anchor.center,
     );
 
+    interface.render(canvas);
+
     super.render(canvas);
   }
 
+  Future<void> increaseCash(int amount) async {
+    this._cash += amount;
+    if (!_cash.isNegative) worth += amount;
+
+    await MovingText(
+      "+\$$amount",
+      gameRef: gameRef,
+      position: interface.center.toVector2(),
+      config: TextPaintConfig(color: Colors.greenAccent, fontSize: 18.0),
+      direction: Direction.UP,
+      expectedBgColor: initColor,
+    ).play();
+  }
+
+  Future<void> decreaseCash(int amount, [bool paid = false]) async {
+    this._cash -= amount;
+    if (paid) {
+      worth -= amount;
+
+      await MovingText(
+        "-\$$amount",
+        gameRef: gameRef,
+        position: interface.center.toVector2(),
+        config: TextPaintConfig(color: Colors.redAccent, fontSize: 18.0),
+        direction: Direction.DOWN,
+        expectedBgColor: initColor,
+      ).play();
+    }
+  }
+
   Future<bool> moveTo(int id) async {
-    final from = currentSpaceIndex;
+    final from = currentSpaceId;
     final to = id;
 
-    if (currentSpaceIndex == to || isBusy || _isAnimating) return false;
+    if (currentSpaceId == to || isBusy || _waitMoving) return false;
 
     isBusy = true;
 
     List<Vector2> path = generatePath(from, to);
 
     for (var p in path) {
-      _isAnimating = true;
+      _waitMoving = true;
       var effects = CombinedEffect(
         effects: [
           MoveEffect(
@@ -133,8 +178,9 @@ class Player extends PositionComponent with HasGameRef<Bankroll> {
           ),
         ],
         onComplete: () {
-          FlameAudio.audioCache.play("sfx/step.ogg", volume: 0.5);
-          _isAnimating = false;
+          if (!Platform.isWindows)
+            FlameAudio.audioCache.play("sfx/step.ogg", volume: 0.5);
+          _waitMoving = false;
         },
       );
 
@@ -142,12 +188,12 @@ class Player extends PositionComponent with HasGameRef<Bankroll> {
 
       await _waitUntilDone();
 
-      currentSpaceIndex = gameRef.spaces.indexWhere((s) => p == s.center);
+      currentSpaceId = gameRef.spaces.indexWhere((s) => p == s.center);
 
-      if (currentSpaceIndex == gameRef.startSpace!.id) await increaseCash(200);
+      if (currentSpaceId == gameRef.startSpace!.id) await increaseCash(200);
 
       gameRef.refreshPlayers();
-      print(currentSpaceIndex);
+      print(currentSpaceId);
     }
 
     isBusy = false;
@@ -165,7 +211,6 @@ class Player extends PositionComponent with HasGameRef<Bankroll> {
     if (from == spaces.last.id) from = -1;
     for (int i = from + 1; i < spaces.length; i++) {
       path.add(spaces[i].center);
-      // print(path.length.toString() + "- " + spaces[i].name);
       if (i == to) break;
       if (i == spaces.last.id && path.last != spaces[to].center)
         return generatePath(-1, to, path);
@@ -176,22 +221,12 @@ class Player extends PositionComponent with HasGameRef<Bankroll> {
 
   Future<void> _waitUntilDone() async {
     final completer = Completer();
-    if (_isAnimating) {
+    if (_waitMoving) {
       await Future.delayed(Duration(milliseconds: 100));
       return _waitUntilDone();
     } else {
       completer.complete();
     }
     return completer.future;
-  }
-
-  Future<void> increaseCash(int amount) async {
-    this.cash += amount;
-    if (!cash.isNegative) worth += amount;
-  }
-
-  Future<void> decreaseCash(int amount) async {
-    this.cash += amount;
-    if (cash.isNegative) worth -= amount;
   }
 }

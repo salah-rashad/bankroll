@@ -1,5 +1,6 @@
-import 'package:bankroll/game/components/property.dart';
 import 'package:bankroll/game/enums/property_type_enum.dart';
+
+import 'property.dart';
 
 class CityProperty extends Property {
   CityProperty(
@@ -11,8 +12,8 @@ class CityProperty extends Property {
   ) : super(
           name: name,
           price: price,
-          rentPrice: rentPrice,
+          initRent: rentPrice,
           type: SpaceType.CITY,
-          blockId: blockId,
+          groupId: blockId,
         );
 }
