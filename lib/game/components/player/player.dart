@@ -23,9 +23,8 @@ abstract class Player extends PositionComponent with HasGameRef<Bankroll> {
   Color initTextColor;
   int _cash;
   int worth = 0;
+  int jailedRounds = 0;
 
-  PlayerInterface get interface =>
-      PlayerInterface(player: this, gameRef: gameRef);
   late final Vector2 initSize;
 
   int currentSpaceId = 0;
@@ -45,6 +44,10 @@ abstract class Player extends PositionComponent with HasGameRef<Bankroll> {
   bool get isTurn => gameRef.currentPlayer == this;
   Color get color => isTurn ? initColor : initColor.darken(0.6);
   Color get textColor => isTurn ? initTextColor : initTextColor.darken(0.6);
+  PlayerInterface get interface =>
+      PlayerInterface(player: this, gameRef: gameRef);
+  bool get isJailed => jailedRounds > 0;
+
   @override
   Future<void>? onLoad() {
     worth = _cash;

@@ -133,7 +133,7 @@ class Bankroll extends BaseGame with HasTappableComponents, KeyboardEvents {
   @override
   void render(Canvas canvas) {
     // Drawing background
-    Paint centerPanelFill = Paint()..color = Colors.purple.darken(0.9);
+    Paint centerPanelFill = Paint()..color = Colors.purple.darken(0.8);
     canvas.drawRRect(
         RRect.fromRectAndRadius(Rect.largest, Radius.circular(4.0)),
         centerPanelFill);
@@ -223,7 +223,10 @@ class Bankroll extends BaseGame with HasTappableComponents, KeyboardEvents {
 
   Future<void> rollDice() async {
     if (currentPlayer.isBusy || isRolling) return;
-
+    if (currentPlayer.isJailed) {
+      await nextTurn();
+      return;
+    }
     isRolling = true;
     rollButton.isEnabled = false;
     lastRoll = await dice.roll();
@@ -265,11 +268,47 @@ class Bankroll extends BaseGame with HasTappableComponents, KeyboardEvents {
       }
     }
 
+    if (destSpace.type == SpaceType.JAIL) {
+      currentPlayer.jailedRounds = 3;
+      await Get.showSnackbar(
+        GetBar(
+          title: currentPlayer.name,
+          message:
+              "Jailed for ${currentPlayer.jailedRounds} rounds!\nStarts next round.",
+          duration: Duration(seconds: 2),
+        ),
+      );
+      await nextTurn();
+      return;
+    }
+
     rollButton.isEnabled = true;
     isRolling = false;
 
-    if (lastRoll == 6) return;
+    if (lastRoll == 6 && !currentPlayer.isJailed) return;
+    await nextTurn();
+  }
+
+  Future<void> nextTurn() async {
     turn = (turn + 1) % players.length;
+
+    if (currentPlayer.isJailed) {
+      rollButton.isEnabled = false;
+      isRolling = true;
+
+      await Get.showSnackbar(
+        GetBar(
+          title: currentPlayer.name,
+          message: "Jailed for ${currentPlayer.jailedRounds} rounds!",
+          duration: Duration(seconds: 2),
+        ),
+      );
+      currentPlayer.jailedRounds--;
+      nextTurn();
+      return;
+    }
+    rollButton.isEnabled = true;
+    isRolling = false;
   }
 
   @override
