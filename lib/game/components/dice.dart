@@ -59,7 +59,7 @@ class Dice extends SpriteComponent with HasGameRef<Bankroll> {
   Future<void> _waitUntilDone() async {
     final completer = Completer();
     if (_isAnimating) {
-      await Future.delayed(Duration(milliseconds: 100));
+      await await 0.1.delay();
       return _waitUntilDone();
     } else {
       completer.complete();

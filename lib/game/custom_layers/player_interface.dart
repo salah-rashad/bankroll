@@ -27,14 +27,30 @@ class PlayerInterface extends PreRenderedLayer {
   @override
   void drawLayer() {
     final size = gameRef.canvasSize.x / (gameRef.players.length + 2);
+
     final rect = RRect.fromRectAndRadius(
       Rect.fromCenter(center: center, width: size, height: size),
       Radius.circular(size),
     );
+
     canvas.drawRRect(
       rect,
       Paint()..color = player.color,
     );
+
+    if (player.isJailed) {
+      TextPaint(
+        config: TextPaintConfig(
+          fontSize: max(10, size * 0.2),
+          color: player.initTextColor,
+        ),
+      ).render(
+        canvas,
+        "🔒",
+        Vector2(rect.right, rect.top),
+        anchor: Anchor.topRight,
+      );
+    }
 
     String name = player.name;
 

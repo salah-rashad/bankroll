@@ -53,6 +53,7 @@ flutter:
     - assets/images/icons/public/
     - assets/images/icons/event/
     - assets/images/scenes/
+    - assets/images/scenes/public/
     - assets/audio/
     - assets/audio/sfx/
 

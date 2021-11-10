@@ -1,14 +1,15 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:bankroll/game/components/background_text_component.dart';
 import 'package:bankroll/game/consts/priorities.dart';
 import 'package:bankroll/game/enums/direction.dart';
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
+import 'package:flame/extensions.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/animation.dart';
 import 'package:get/get.dart';
-import 'package:flame/extensions.dart';
 
 class MovingText {
   final BaseGame gameRef;
@@ -17,7 +18,7 @@ class MovingText {
   final Direction direction;
   final TextPaintConfig? config;
   final double distance;
-  final Color? expectedBgColor;
+  final Color? bgColor;
 
   MovingText(
     this.text, {
@@ -26,7 +27,7 @@ class MovingText {
     this.config,
     this.direction = Direction.RIGHT,
     this.distance = 30.0,
-    this.expectedBgColor,
+    this.bgColor,
   });
 
   bool _wait = false;
@@ -35,23 +36,16 @@ class MovingText {
     try {
       _wait = true;
 
-      var tc = TextComponent(
+      var tc = BackgroundTextComponent(
         this.text,
+        bgColor: bgColor,
+        radius: Radius.elliptical(8, 5),
         position: this.position ?? Vector2(0.0, 0.0),
         priority: Priorities.INTERFACE.index,
         textRenderer: TextPaint(
           config: this.config ?? TextPaintConfig(),
         ),
       );
-
-      // if (expectedBgColor != null && this.config != null) {
-      //   final c = this.config!.color;
-      //   tc.textRenderer = TextPaint(
-      //     config: config!.withColor(expectedBgColor!.computeLuminance() > 0.5
-      //         ? c.darken(0.5)
-      //         : c.brighten(0.5)),
-      //   );
-      // }
 
       gameRef.add(tc);
 
@@ -76,7 +70,7 @@ class MovingText {
         effects: [
           MoveEffect(
             path: [path],
-            duration: 1.0,
+            duration: 1.5,
             curve: Curves.linearToEaseOut,
           ),
           // ScaleEffect(
@@ -101,7 +95,7 @@ class MovingText {
   Future<void> _waitUntilDone() async {
     final completer = Completer();
     if (_wait) {
-      await Future.delayed(Duration(milliseconds: 100));
+      await 0.1.delay();
       return _waitUntilDone();
     } else {
       completer.complete();

@@ -5,7 +5,6 @@ import "package:collection/collection.dart";
 import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
 import 'package:flame/extensions.dart';
-import 'package:flame/flame.dart';
 import 'package:flame/game.dart';
 import 'package:flame/keyboard.dart';
 import 'package:flutter/material.dart';
@@ -36,14 +35,18 @@ class Bankroll extends BaseGame with HasTappableComponents, KeyboardEvents {
   late final SimpleButtonComponent rollButton;
 
   final Dice dice = Dice();
+
   double get BOARD_END => Get.height - BOARD_START;
   double get BOARD_START => (Get.height % (8 * sHeight)) / 2;
+  double get BOARD_WIDTH => Get.width;
+  double get BOARD_HEIGHT => sHeight * 8;
+
   Player get currentPlayer => players[turn];
 
   @override
   bool get debugMode => false;
 
-  Player get generalPlayer => players.singleWhere((p) => p is GeneralPlayer);
+  Player get primaryPlayer => players.singleWhere((p) => p is GeneralPlayer);
   double get sHeight => sWidth * 1.2;
   double get sWidth => Get.width / 8;
 
@@ -133,10 +136,45 @@ class Bankroll extends BaseGame with HasTappableComponents, KeyboardEvents {
   @override
   void render(Canvas canvas) {
     // Drawing background
-    Paint centerPanelFill = Paint()..color = Colors.purple.darken(0.8);
+    Paint background = Paint()..color = Colors.purple.darken(0.8);
+    canvas.drawRect(
+      Rect.largest,
+      background,
+    );
+
+    canvas.drawShadow(
+      Path()
+        ..moveTo(10.0, BOARD_END + 10.0)
+        ..relativeLineTo(16.0, 16.0)
+        ..relativeArcToPoint(
+          Offset(60.0, 30.0),
+          radius: Radius.circular(60.0),
+          clockwise: false,
+        )
+        ..relativeLineTo(BOARD_WIDTH, 0.0)
+        ..relativeLineTo(0.0, -80),
+      Colors.black,
+      5.0,
+      true,
+    );
+
+    var boardRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(0.0, BOARD_START, BOARD_WIDTH, BOARD_HEIGHT + 16.0),
+        Radius.circular(16.0));
+
+    final boardColor = Colors.blueGrey;
+    Paint board = Paint()..color = boardColor.darken(0.5);
     canvas.drawRRect(
-        RRect.fromRectAndRadius(Rect.largest, Radius.circular(4.0)),
-        centerPanelFill);
+      boardRect,
+      board,
+    );
+    board.color = boardColor;
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+          Rect.fromLTWH(0.0, BOARD_START, BOARD_WIDTH, BOARD_HEIGHT),
+          Radius.circular(8.0)),
+      board,
+    );
 
     super.render(canvas);
   }
@@ -149,14 +187,27 @@ class Bankroll extends BaseGame with HasTappableComponents, KeyboardEvents {
       var groups = properties.groupListsBy((p) => p.groupId);
 
       for (var player in players) {
-        groups.forEach((key, value) {
-          var shared = value.where((p) => p.owner == player).toList();
+        groups.forEach((i, props) {
+          var shared = props.where((p) => p.owner == player).toList();
           int sumRent =
               shared.fold<int>(0, (prev, next) => prev + next.initRent);
 
+          List<CityProperty> cities = props.whereType<CityProperty>().toList();
+
           shared.forEach((p) {
-            p.rent = sumRent;
+            if (!cities.singleWhere((e) => e.id == p.id).upgradeEnabled)
+              p.rent = sumRent;
           });
+
+          if (cities.every((element) => element.owner == primaryPlayer)) {
+            cities.forEach((city) {
+              if (city.owner == primaryPlayer && primaryPlayer.isTurn)
+                city.upgradeEnabled = true;
+              else
+                city.upgradeEnabled = false;
+            });
+          } else
+            cities.forEach((element) => element.upgradeEnabled = false);
         });
       }
     } catch (e) {
@@ -221,17 +272,21 @@ class Bankroll extends BaseGame with HasTappableComponents, KeyboardEvents {
     }
   }
 
-  Future<void> rollDice() async {
-    if (currentPlayer.isBusy || isRolling) return;
-    if (currentPlayer.isJailed) {
-      await nextTurn();
+  Future<void> rollDice([int? forceDest]) async {
+    if (currentPlayer.isBusy || isRolling)
       return;
+    else if (currentPlayer.isJailed) {
+      return nextTurn();
     }
+
     isRolling = true;
     rollButton.isEnabled = false;
+
     lastRoll = await dice.roll();
 
     int destination = (currentPlayer.currentSpaceId + lastRoll) % spaces.length;
+
+    if (forceDest != null) destination = forceDest;
 
     await currentPlayer.moveTo(destination);
 
@@ -240,18 +295,18 @@ class Bankroll extends BaseGame with HasTappableComponents, KeyboardEvents {
 
     if (destSpace is Property) {
       var owner = destSpace.owner;
-      if (currentPlayer == generalPlayer) {
+      if (currentPlayer == primaryPlayer) {
         if (owner == null) {
-          if (generalPlayer.cash >= destSpace.price)
+          if (primaryPlayer.cash >= destSpace.price)
             await destSpace.showInfoCard("buy");
         } else {
-          if (owner == generalPlayer) {
-            if (generalPlayer.cash.isNegative) {
+          if (owner == primaryPlayer) {
+            if (primaryPlayer.cash.isNegative) {
               await destSpace.showInfoCard("sell");
             }
           } else {
             owner.increaseCash(destSpace.rent);
-            await generalPlayer.decreaseCash(destSpace.rent, true);
+            await primaryPlayer.decreaseCash(destSpace.rent, true);
           }
         }
       } else {
@@ -270,14 +325,19 @@ class Bankroll extends BaseGame with HasTappableComponents, KeyboardEvents {
 
     if (destSpace.type == SpaceType.JAIL) {
       currentPlayer.jailedRounds = 3;
-      await Get.showSnackbar(
+      Get.showSnackbar(
         GetBar(
           title: currentPlayer.name,
-          message:
-              "Jailed for ${currentPlayer.jailedRounds} rounds!\nStarts next round.",
-          duration: Duration(seconds: 2),
+          message: "Jailed for (${currentPlayer.jailedRounds}) rounds!",
+          duration: Duration(seconds: 5),
+          backgroundColor: Colors.black87,
+          borderColor: currentPlayer.initColor,
+          borderRadius: 2.0,
+          borderWidth: 2.0,
         ),
       );
+
+      await 2.delay();
       await nextTurn();
       return;
     }
@@ -296,14 +356,27 @@ class Bankroll extends BaseGame with HasTappableComponents, KeyboardEvents {
       rollButton.isEnabled = false;
       isRolling = true;
 
-      await Get.showSnackbar(
+      Get.showSnackbar(
         GetBar(
-          title: currentPlayer.name,
-          message: "Jailed for ${currentPlayer.jailedRounds} rounds!",
-          duration: Duration(seconds: 2),
+          icon: Text(
+            currentPlayer.jailedRounds.toString(),
+            textAlign: TextAlign.center,
+            style: TextStyle(color: currentPlayer.initColor, fontSize: 22.0),
+          ),
+          titleText: Text(
+            currentPlayer.name,
+            style: TextStyle(color: currentPlayer.initColor),
+          ),
+          message: "rounds remaining in jail.",
+          duration: Duration(seconds: 5),
+          backgroundColor: Colors.black87,
+          borderColor: currentPlayer.initColor,
+          borderRadius: 2.0,
+          borderWidth: 2.0,
         ),
       );
       currentPlayer.jailedRounds--;
+      await 2.delay();
       nextTurn();
       return;
     }
@@ -321,13 +394,15 @@ class Bankroll extends BaseGame with HasTappableComponents, KeyboardEvents {
       if (isRolling) return;
       rollDice();
       rollButton.isTapDown = true;
-      await Future.delayed(Duration(milliseconds: 100));
+      await await 0.1.delay();
       rollButton.isTapDown = false;
     }
     if (event.isKeyPressed(LogicalKeyboardKey.enter))
       turn = (turn + 1) % players.length;
 
     if (event.isKeyPressed(LogicalKeyboardKey.backspace)) Get.back();
+
+    if (event.isKeyPressed(LogicalKeyboardKey.end)) rollDice(14);
   }
 }
 
@@ -349,15 +424,20 @@ List<Space> get _boardSpaces => [
         type: SpaceType.START,
         color: Colors.white,
         rect: Rect.zero,
-        icon: Flame.images.fromCache("icons/event/home.png"),
+        iconPath: "icons/event/home.png",
       ),
       //
       // Block 1
       CityProperty("Rio", 100, 10, 50, 1),
       CityProperty("Delhi", 100, 10, 50, 1),
       // Block 2
-      CityProperty("Bangkok", 150, 15, 70, 2),
-      PublicProperty("Trucking", 100, 35),
+      CityProperty("Bangkok", 130, 15, 70, 2),
+      PublicProperty(
+        "Trucking",
+        100,
+        35,
+        "icons/public/trucking.png",
+      ),
       CityProperty("Cairo", 150, 15, 80, 2),
       CityProperty("Madrid", 150, 15, 80, 2),
       //
@@ -366,7 +446,7 @@ List<Space> get _boardSpaces => [
         type: SpaceType.LUCKY_CARD,
         color: Colors.white,
         rect: Rect.zero,
-        icon: Flame.images.fromCache("icons/event/lucky_card.png"),
+        iconPath: "icons/event/lucky_card.png",
       ),
       //
       // Block 3
@@ -374,7 +454,12 @@ List<Space> get _boardSpaces => [
       CityProperty("Berlin", 180, 20, 100, 3),
       // Block 4
       CityProperty("Moscow", 200, 30, 120, 4),
-      PublicProperty("Rail Freight", 150, 35),
+      PublicProperty(
+        "Rail Freight",
+        150,
+        35,
+        "icons/public/rail.png",
+      ),
       CityProperty("Toronto", 200, 30, 120, 4),
       CityProperty("Seoul", 200, 30, 120, 4),
       //
@@ -383,7 +468,7 @@ List<Space> get _boardSpaces => [
         type: SpaceType.JAIL,
         color: Colors.grey[200]!,
         rect: Rect.zero,
-        icon: Flame.images.fromCache("icons/event/jail5.png"),
+        iconPath: "icons/event/jail5.png",
       ),
       //
       // Block 5
@@ -391,7 +476,12 @@ List<Space> get _boardSpaces => [
       CityProperty("Riyadh", 250, 35, 140, 5),
       // Block 6
       CityProperty("Sydney", 300, 40, 170, 6),
-      PublicProperty("Ocean Freight", 200, 35),
+      PublicProperty(
+        "Ocean Freight",
+        200,
+        35,
+        "icons/public/ocean.png",
+      ),
       CityProperty("Beijing", 300, 40, 170, 6),
       CityProperty("Dubai", 300, 40, 170, 6),
       //
@@ -400,7 +490,7 @@ List<Space> get _boardSpaces => [
         type: SpaceType.AUCTION,
         color: Colors.white,
         rect: Rect.zero,
-        icon: Flame.images.fromCache("icons/event/auction.png"),
+        iconPath: "icons/event/auction.png",
         onlyIcon: true,
       ),
       //
@@ -409,8 +499,12 @@ List<Space> get _boardSpaces => [
       CityProperty("Hong Kong", 350, 50, 200, 7),
       // Block 8
       CityProperty("London", 420, 70, 200, 8),
-      PublicProperty("Air Cargo", 250, 35,
-          Flame.images.fromCache("icons/public/air_cargo.png")),
+      PublicProperty(
+        "Air Cargo",
+        250,
+        35,
+        "icons/public/air.png",
+      ),
       CityProperty("Tokyo", 420, 70, 200, 8),
       CityProperty("New York", 450, 80, 200, 8),
     ];

@@ -6,6 +6,7 @@ import 'package:bankroll/game/consts/priorities.dart';
 import 'package:bankroll/game/enums/property_type_enum.dart';
 import 'package:flame/components.dart';
 import 'package:flame/extensions.dart';
+import 'package:flame/flame.dart';
 import 'package:flame/gestures.dart';
 import 'package:flutter/material.dart' hide Image;
 
@@ -15,17 +16,20 @@ abstract class Space extends PositionComponent
   final String name;
   final SpaceType type;
   Color color;
-  Image? icon;
+  String? iconPath;
   bool _onlyIcon = false;
 
   double _fontSize = 10;
-  late Vector2 _iconSize;
+
+  Image? get icon {
+    if (iconPath != null) return Flame.images.fromCache(iconPath!);
+  }
 
   Space({
     required this.name,
     required this.type,
     required this.color,
-    this.icon,
+    this.iconPath,
     bool onlyIcon = false,
   })  : _onlyIcon = onlyIcon,
         super(priority: Priorities.SPACE.index);
@@ -34,18 +38,15 @@ abstract class Space extends PositionComponent
   double get radius => max(2.0, width * 0.04);
   double get padding => max(1.0, height * 0.015);
   double get elevation => max(4.0, height * 0.05);
+  Color get nameTextColor =>
+      color.computeLuminance() > 0.5 ? color.darken(0.7) : color.brighten(0.7);
 
   get owner => null;
 
   @override
   Future<void>? onLoad() {
     _fontSize = max(10, width * 0.20);
-    if (icon != null) {
-      _iconSize = Vector2(
-        icon!.width.toDouble(),
-        icon!.height.toDouble(),
-      );
-    }
+
     return super.onLoad();
   }
 
@@ -73,9 +74,7 @@ abstract class Space extends PositionComponent
 
     var _textPaint = TextPaint(
       config: TextPaintConfig(
-        color: color.computeLuminance() > 0.5
-            ? color.darken(0.7)
-            : color.brighten(0.7),
+        color: nameTextColor,
         fontSize: _fontSize,
       ).withTextAlign(TextAlign.center),
     );
@@ -86,29 +85,33 @@ abstract class Space extends PositionComponent
       _fontSize -= 1;
     }
 
-    if (icon != null) {
+    if (iconPath != null) {
       var rect = Rect.fromLTWH(
         0.0,
         0.0,
-        _iconSize.x,
-        _iconSize.y,
+        icon!.width.toDouble(),
+        icon!.height.toDouble(),
       );
 
       canvas.drawImageRect(
-          icon!,
-          rect,
-          Rect.fromCenter(
-            center: center
-                .toOffset()
-                .translate(0.0, onlyIcon ? 0.0 : -height * 0.3),
-            width: width * 0.8,
-            height: width * 0.8,
-          ),
-          Paint());
+        icon!,
+        rect,
+        Rect.fromCenter(
+          center:
+              center.toOffset().translate(0.0, onlyIcon ? 0.0 : -height * 0.3),
+          width: width * 0.8,
+          height: width * 0.8,
+        ),
+        Paint(),
+      );
+
       if (!onlyIcon)
         _textPaint.render(
-            canvas, text, Vector2(center.x, toRect().bottom - height * 0.2),
-            anchor: Anchor.bottomCenter);
+          canvas,
+          text,
+          Vector2(center.x, toRect().bottom - height * 0.2),
+          anchor: Anchor.bottomCenter,
+        );
     } else {
       _textPaint.render(canvas, text, this.center, anchor: Anchor.center);
     }
@@ -122,4 +125,6 @@ abstract class Space extends PositionComponent
 
     return super.onTapUp(info);
   }
+
+  Future<void> showInfoCard() async {}
 }

@@ -13,13 +13,13 @@ class EventSpace extends Space {
     required SpaceType type,
     Rect rect = Rect.zero,
     Color color = Colors.white,
-    Image? icon,
+    String? iconPath,
     bool onlyIcon = false,
   }) : super(
           name: name.toUpperCase(),
           color: color,
           type: type,
-          icon: icon,
+          iconPath: iconPath,
           onlyIcon: onlyIcon,
         );
 

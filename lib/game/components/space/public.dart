@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:bankroll/game/consts/priorities.dart';
 import 'package:bankroll/game/enums/property_type_enum.dart';
 import 'package:flutter/material.dart' hide Image;
@@ -11,16 +9,16 @@ class PublicProperty extends Property {
     String name,
     int price,
     int rentPrice, [
-    Image? icon,
+    String? iconPath,
   ]) : super(
           name: name,
-          price: price,
+          initPrice: price,
           initRent: rentPrice,
           type: SpaceType.PUBLIC,
           color: Colors.blueGrey[600]!,
           groupId: 0,
         ) {
-    this.icon = icon;
+    this.iconPath = iconPath;
   }
 
   @override
@@ -28,4 +26,7 @@ class PublicProperty extends Property {
 
   @override
   int get priority => Priorities.PUBLIC_PROPERTY.index;
+
+  @override
+  void upgrade() {}
 }

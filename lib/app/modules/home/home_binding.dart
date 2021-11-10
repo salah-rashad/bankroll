@@ -37,6 +37,9 @@ class HomeBinding implements Bindings {
     Flame.images.load("icons/event/lucky_card.png");
 
     // public
-    Flame.images.load("icons/public/air_cargo.png");
+    Flame.images.load("icons/public/air.png");
+    Flame.images.load("icons/public/ocean.png");
+    Flame.images.load("icons/public/rail.png");
+    Flame.images.load("icons/public/trucking.png");
   }
 }

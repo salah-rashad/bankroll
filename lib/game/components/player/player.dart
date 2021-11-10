@@ -11,12 +11,15 @@ import 'package:flame/components.dart';
 import 'package:flame/effects.dart';
 import 'package:flame/extensions.dart';
 import 'package:flame/game.dart';
+import 'package:flame/gestures.dart';
 import 'package:flame_audio/flame_audio.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
-abstract class Player extends PositionComponent with HasGameRef<Bankroll> {
+abstract class Player extends PositionComponent
+    with HasGameRef<Bankroll>, Tappable {
   /// The duration that every step takes, in milliseconds.
-  static const double STEP_DURATION = 0.2;
+  static const double STEP_DURATION = 0.21;
 
   final String name;
   final Color initColor;
@@ -131,9 +134,9 @@ abstract class Player extends PositionComponent with HasGameRef<Bankroll> {
       "+\$$amount",
       gameRef: gameRef,
       position: interface.center.toVector2(),
-      config: TextPaintConfig(color: Colors.greenAccent, fontSize: 18.0),
+      config: TextPaintConfig(color: Colors.black, fontSize: 18.0),
       direction: Direction.UP,
-      expectedBgColor: initColor,
+      bgColor: Colors.greenAccent,
     ).play();
   }
 
@@ -146,9 +149,9 @@ abstract class Player extends PositionComponent with HasGameRef<Bankroll> {
         "-\$$amount",
         gameRef: gameRef,
         position: interface.center.toVector2(),
-        config: TextPaintConfig(color: Colors.redAccent, fontSize: 18.0),
+        config: TextPaintConfig(color: Colors.black, fontSize: 18.0),
         direction: Direction.DOWN,
-        expectedBgColor: initColor,
+        bgColor: Colors.redAccent,
       ).play();
     }
   }
@@ -162,6 +165,8 @@ abstract class Player extends PositionComponent with HasGameRef<Bankroll> {
     isBusy = true;
 
     List<Vector2> path = generatePath(from, to);
+
+    this.size = initSize;
 
     for (var p in path) {
       _waitMoving = true;
@@ -195,7 +200,6 @@ abstract class Player extends PositionComponent with HasGameRef<Bankroll> {
 
       if (currentSpaceId == gameRef.startSpace!.id) await increaseCash(200);
 
-      gameRef.refreshPlayers();
       print(currentSpaceId);
     }
 
@@ -225,11 +229,17 @@ abstract class Player extends PositionComponent with HasGameRef<Bankroll> {
   Future<void> _waitUntilDone() async {
     final completer = Completer();
     if (_waitMoving) {
-      await Future.delayed(Duration(milliseconds: 100));
+      await await 0.1.delay();
       return _waitUntilDone();
     } else {
       completer.complete();
     }
     return completer.future;
+  }
+
+  @override
+  bool onTapUp(TapUpInfo info) {
+    this._cash += 500;
+    return super.onTapUp(info);
   }
 }
