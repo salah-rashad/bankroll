@@ -5,7 +5,7 @@
         "**/.hg": true,
         "**/CVS": true,
         "**/.DS_Store": true,
-        "**/*.zip": true
+        "**/Thumbs.db": true
     },
-    "explorerExclude.backup": null
+    "hide-files.files": []
 }
